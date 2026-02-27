@@ -10,7 +10,7 @@ int main()
     register_health_routes(app);
     register_items_routes(app);
 
-    const uint16_t port = 8080;
+    const uint16_t port = 30009;
     app.port(port).multithreaded().run();
 
     return 0;
