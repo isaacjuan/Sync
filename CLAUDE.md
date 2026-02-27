@@ -7,8 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) and other AI assista
 ## Repository Overview
 
 **Repository:** isaacjuan/Sync
-**Status:** Initialized — no source code committed yet.
-**Purpose:** To be determined as the project evolves. Update this section once the project's intent is clear.
+**Status:** Active development.
+**Purpose:** REST API backend written in C++ using the Crow framework.
+**Tech stack:** C++17, Crow v1.0+5, CMake 3.16+
 
 ---
 
@@ -53,23 +54,71 @@ docs: add CLAUDE.md with project conventions
 
 ## Development Workflow
 
+### Project Structure
+```
+sync-backend/
+├── CMakeLists.txt          # Build definition; FetchContent pulls Crow
+├── src/
+│   ├── main.cpp            # Entry point — registers routes, starts server
+│   └── routes/
+│       ├── health.hpp/.cpp # GET /health
+│       └── items.hpp/.cpp  # CRUD /items
+└── include/                # Public headers (add as project grows)
+```
+
 ### Getting Started
-Since this repository is new, the first steps will typically be:
-1. Clone the repository
-2. Install project dependencies (update this section once a tech stack is chosen)
-3. Configure environment variables (copy `.env.example` to `.env` if applicable)
-4. Run the development server
+
+**Prerequisites:** CMake ≥ 3.16, a C++17-capable compiler (GCC 9+, Clang 10+), git, and an internet connection (FetchContent downloads Crow on first build).
+
+```bash
+# 1. Clone
+git clone <repo-url> && cd sync-backend
+
+# 2. Configure (Debug build)
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
+
+# 3. Compile
+cmake --build build -j$(nproc)
+
+# 4. Run (listens on :8080)
+./build/sync-backend
+```
+
+**Quick smoke test:**
+```bash
+curl http://localhost:8080/health
+curl -X POST http://localhost:8080/items -d '{"name":"widget"}' -H 'Content-Type: application/json'
+curl http://localhost:8080/items
+```
+
+### Adding a New Route Module
+1. Create `src/routes/<module>.hpp` and `src/routes/<module>.cpp`
+2. Define a `register_<module>_routes(crow::SimpleApp& app)` function
+3. Call it from `src/main.cpp`
+4. CMake picks up the new `.cpp` automatically via `file(GLOB_RECURSE)`
 
 ### Environment Setup
-- Copy `.env.example` to `.env` and fill in required values (if applicable)
+- The server port defaults to `8080` (set in `src/main.cpp`)
 - Never commit `.env` files containing secrets
-- Document all required environment variables in `.env.example`
+- Document all required environment variables in `.env.example` if added
 
 ---
 
 ## Code Conventions
 
-These conventions apply generally and should be refined as the project's tech stack is established.
+### C++ Style
+- Standard: **C++17**
+- Naming: `snake_case` for variables, functions, files; `PascalCase` for types/classes
+- Use `#pragma once` for include guards
+- Prefer `const` and `constexpr` where applicable
+- Use `std::mutex` + `std::lock_guard` for any shared mutable state (the in-memory store uses this pattern)
+- No raw `new`/`delete` — use smart pointers (`std::unique_ptr`, `std::shared_ptr`) or value semantics
+
+### Route Conventions
+- Each resource gets its own `.hpp`/`.cpp` pair under `src/routes/`
+- Route functions are named `register_<resource>_routes(crow::SimpleApp&)`
+- Return JSON with appropriate HTTP status codes; never return 200 on error
+- Validate all fields from `req.body` before use
 
 ### General
 - Prefer clarity over cleverness
@@ -78,27 +127,28 @@ These conventions apply generally and should be refined as the project's tech st
 - Validate at system boundaries (user input, external APIs); trust internal code
 
 ### File Organization
-- Group related files by feature/domain, not by file type, where practical
+- Group by feature/resource under `src/routes/`
 - Keep configuration files at the project root
-- Place tests adjacent to the code they test, or in a parallel `tests/` directory
+- Place tests in a parallel `tests/` directory (when added)
 
 ### Error Handling
 - Handle errors explicitly; avoid swallowing exceptions silently
-- Log errors with enough context to diagnose the issue
-- Return meaningful error messages to callers/users
+- Return meaningful JSON error objects: `{"error": "<description>"}`
+- Use appropriate HTTP status codes (400 bad request, 404 not found, 500 server error)
 
 ### Security
 - Never hardcode secrets, API keys, or credentials
-- Sanitize all user input before use
+- Validate and sanitize all request body fields before use
 - Follow OWASP Top 10 guidelines
-- Use parameterized queries for all database access
+- Use parameterized queries for all database access (when a DB is added)
 
 ---
 
 ## Testing
 
-Update this section once a testing framework is chosen. General guidelines:
+No test framework is configured yet. Recommended path: add **Google Test** via FetchContent and create a `tests/` directory at the root.
 
+General guidelines (apply when tests are added):
 - Write tests for all non-trivial logic
 - Aim for tests that are fast, isolated, and deterministic
 - Use descriptive test names that explain the expected behavior
@@ -108,10 +158,13 @@ Update this section once a testing framework is chosen. General guidelines:
 
 ## Linting and Formatting
 
-Update this section once tooling is configured. General guidelines:
+Recommended tools (not yet configured):
+- **clang-format** for formatting — run `clang-format -i src/**/*.cpp src/**/*.hpp`
+- **clang-tidy** for static analysis
 
+General guidelines:
 - Run linting before committing: ensure zero lint errors
-- Use the project's configured formatter (e.g., Prettier, Black, rustfmt) — do not reformat files outside the scope of your change
+- Do not reformat files outside the scope of your change
 - Linting and formatting checks should pass in CI before merging
 
 ---
@@ -151,4 +204,4 @@ This file should be updated whenever:
 - Significant architectural decisions are made
 - New team conventions are established
 
-Last updated: 2026-02-26
+Last updated: 2026-02-27
